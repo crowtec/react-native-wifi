@@ -16,6 +16,7 @@ import android.provider.Settings;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiEnterpriseConfig;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.NetworkRequest;
@@ -93,16 +94,16 @@ public class RNWifiModule extends ReactContextBaseJavaModule {
 
 	//Method to force wifi usage if the user needs to send requests via wifi
 	//if it does not have internet connection. Useful for IoT applications, when
-	//the app needs to communicate and send requests to a device that have no 
+	//the app needs to communicate and send requests to a device that have no
 	//internet connection via wifi.
 
 	//Receives a boolean to enable forceWifiUsage if true, and disable if false.
-	//Is important to enable only when communicating with the device via wifi 
+	//Is important to enable only when communicating with the device via wifi
 	//and remember to disable it when disconnecting from device.
 	@ReactMethod
 	public void forceWifiUsage(boolean useWifi) {
         boolean canWriteFlag = false;
-		
+
         if (useWifi) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
 
@@ -172,10 +173,6 @@ public class RNWifiModule extends ReactContextBaseJavaModule {
 		wifi.setWifiEnabled(enabled);
 	}
 
-	//Send the ssid and password of a Wifi network into this to connect to the network.
-	//Example:  wifi.findAndConnect(ssid, password);
-	//After 10 seconds, a post telling you whether you are connected will pop up.
-	//Callback returns true if ssid is in the range
 	@ReactMethod
 	public void connectToProtectedSSID(String ssid, String password, Boolean isWep, Promise promise) {
 		List < ScanResult > results = wifi.getScanResults();
@@ -184,6 +181,27 @@ public class RNWifiModule extends ReactContextBaseJavaModule {
 			String resultString = "" + result.SSID;
 			if (ssid.equals(resultString)) {
 				connected = connectTo(result, password, ssid);
+			}
+		}
+		if (connected) {
+			promise.resolve(true);
+		} else {
+			promise.reject("Can't connect to wifi!", "Can't connect to wifi!");
+		}
+	}
+
+	//Send the ssid and password of a Wifi network into this to connect to the network.
+	//Example:  wifi.scanAndConnect(ssid, username, password);
+	//After 10 seconds, a post telling you whether you are connected will pop up.
+	//Callback returns true if ssid is in the range
+	@ReactMethod
+	public void scanAndConnect(String ssid, String username, String password, Promise promise) {
+		List < ScanResult > results = wifi.getScanResults();
+		boolean connected = false;
+		for (ScanResult result: results) {
+			String resultString = "" + result.SSID;
+			if (ssid.equals(resultString)) {
+				connected = connectTo(result, username, password, ssid);
 			}
 		}
 		if (connected) {
@@ -206,10 +224,15 @@ public class RNWifiModule extends ReactContextBaseJavaModule {
 	}
 
 	//Method to connect to WIFI Network
-	public Boolean connectTo(ScanResult result, String password, String ssid) {
+	public Boolean connectTo(ScanResult result, String password, String ssid){
+		return connectTo(result, username, password, ssid);
+	}
+
+	//Method to connect to WIFI Network
+	public Boolean connectTo(ScanResult result, String username, String password, String ssid) {
 		//Make new configuration
 		WifiConfiguration conf = new WifiConfiguration();
-		
+
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
         conf.SSID = ssid;
     } else {
@@ -217,29 +240,39 @@ public class RNWifiModule extends ReactContextBaseJavaModule {
     }
 
 		String capabilities = result.capabilities;
-		
-		if (capabilities.contains("WPA")  || 
-          capabilities.contains("WPA2") || 
+
+		if (capabilities.contains("EAP") && username != null){
+
+			WifiEnterpriseConfig enterpriseConfig = new WifiEnterpriseConfig();
+			conf.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_EAP);
+			conf.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.IEEE8021X);
+			enterpriseConfig.setIdentity(username);
+			enterpriseConfig.setPassword(password);
+			enterpriseConfig.setEapMethod(WifiEnterpriseConfig.Eap.PEAP);
+			conf.enterpriseConfig = enterpriseConfig;
+
+		} else if (capabilities.contains("WPA")  ||
+          capabilities.contains("WPA2") ||
           capabilities.contains("WPA/WPA2 PSK")) {
 
 	    // appropriate ciper is need to set according to security type used,
 	    // ifcase of not added it will not be able to connect
 	    conf.preSharedKey = "\"" + password + "\"";
-	    
+
 	    conf.allowedProtocols.set(WifiConfiguration.Protocol.RSN);
-	    
+
 	    conf.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
-	    
+
 	    conf.status = WifiConfiguration.Status.ENABLED;
-	    
+
 	    conf.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.TKIP);
 	    conf.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.CCMP);
-	    
+
 	    conf.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
-	    
+
 	    conf.allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.TKIP);
 	    conf.allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.CCMP);
-	    
+
 	    conf.allowedProtocols.set(WifiConfiguration.Protocol.RSN);
 	    conf.allowedProtocols.set(WifiConfiguration.Protocol.WPA);
 
