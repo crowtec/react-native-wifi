@@ -225,7 +225,7 @@ public class RNWifiModule extends ReactContextBaseJavaModule {
 
 	//Method to connect to WIFI Network
 	public Boolean connectTo(ScanResult result, String password, String ssid){
-		return connectTo(result, username, password, ssid);
+		return connectTo(result, null, password, ssid);
 	}
 
 	//Method to connect to WIFI Network
