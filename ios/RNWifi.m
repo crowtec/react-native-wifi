@@ -59,8 +59,8 @@ RCT_EXPORT_METHOD(scanAndConnect:(NSString*)ssid
 
     if (@available(iOS 11.0, *)) {
         NEHotspotEAPSettings *settings = [[NEHotspotEAPSettings alloc]init];
-        settings.username = self.username;
-        settings.password = self.passphrase;
+        settings.username = username;
+        settings.password = passphrase;
         settings.supportedEAPTypes = [NSArray arrayWithObjects:[NSNumber numberWithInteger:NEHotspotConfigurationEAPTypeEAPPEAP], nil];
 
         NEHotspotConfiguration* configuration = [[NEHotspotConfiguration alloc] initWithSSID:ssid eapSettings:settings];
